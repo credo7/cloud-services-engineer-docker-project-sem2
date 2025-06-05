@@ -4,41 +4,135 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: docker.io
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USER }}
 
 jobs:
-  build_and_push_to_docker_hub:
-      name: Push Docker image to DockerHub
-      runs-on: ubuntu-latest
-      steps:
-        - name: Check out the repo
-          uses: actions/checkout@v3
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v2
-        - name: Login to Docker 
-          uses: docker/login-action@v2
-          with:
-            username: ${{ secrets.DOCKER_USER }}
-            password: ${{ secrets.DOCKER_PASSWORD }}
-        - name: Push Backend to DockerHub
-          uses: docker/build-push-action@v4
-          with:
-            context: ./backend/
-            push: true
-            tags: ${{ secrets.DOCKER_USER }}/docker-project-backend:latest
-        - name: Push Frontend to DockerHub
-          uses: docker/build-push-action@v4
-          with:
-            context: ./frontend/
-            push: true
-            tags: ${{ secrets.DOCKER_USER }}/docker-project-frontend:latest
-
-  run-with-docker-compose:
-    name: Push Docker image to DockerHub
+  build-and-push:
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
+    outputs:
+      backend-digest: ${{ steps.backend.outputs.digest }}
+      frontend-digest: ${{ steps.frontend.outputs.digest }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Build via Docker Compose
-        uses: hoverkraft-tech/compose-action@v2.2.0
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata for Backend
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_USERNAME }}/docker-project-sem2-backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Backend
+        id: backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Frontend
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_USERNAME }}/docker-project-sem2-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Frontend
+        id: frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  test-with-compose:
+    name: Test with Docker Compose
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create environment file
+        run: |
+          echo "DOCKER_USERNAME=${{ env.DOCKER_USERNAME }}" > .env
+
+      - name: Run Docker Compose
+        run: |
+          docker-compose up -d --wait
+          docker-compose ps
+
+      - name: Test application health
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost; do sleep 2; done'
+          timeout 60 bash -c 'until curl -f http://localhost:8081/health; do sleep 2; done'
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose down -v
+          docker system prune -f
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Run Trivy vulnerability scanner - Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_USERNAME }}/docker-project-sem2-backend:latest
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+
+      - name: Run Trivy vulnerability scanner - Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_USERNAME }}/docker-project-sem2-frontend:latest
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: '.'

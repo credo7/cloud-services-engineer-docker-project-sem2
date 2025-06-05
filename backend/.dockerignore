@@ -1,0 +1,68 @@
+# Version control
+.git
+.gitignore
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go binaries and artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build cache and modules
+.cache/
+vendor/
+
+# Test files and coverage
+*_test.go
+test/
+tests/
+coverage.txt
+coverage.html
+*.cover
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Docker files
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Compressed files
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# Temporary files
+tmp/
+temp/

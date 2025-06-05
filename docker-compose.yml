@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/docker-project-sem2-backend:latest
+    container_name: momo-store-be
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    networks:
+      - momo-net
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - backend_data:/app/data
+    secrets:
+      - backend_env
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/docker-project-sem2-frontend:latest
+    container_name: momo-store-fe
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - momo-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    secrets:
+      - frontend_env
+
+networks:
+  momo-net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: momo-bridge
+
+volumes:
+  backend_data:
+    driver: local
+
+secrets:
+  frontend_env:
+    file: ./secrets/frontend.env
+  backend_env:
+    file: ./secrets/backend.env
