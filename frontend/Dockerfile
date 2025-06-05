@@ -12,9 +12,9 @@ WORKDIR /app
 # Set Node options for legacy OpenSSL provider
 ENV NODE_OPTIONS=--openssl-legacy-provider
 
-# Copy package files and install dependencies
+# Copy package files and install ALL dependencies (including dev dependencies)
 COPY package*.json ./
-RUN npm ci --only=production --no-audit --no-fund
+RUN npm ci
 
 # Copy source code
 COPY . .
