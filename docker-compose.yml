@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: ${DOCKER_USERNAME}/docker-project-sem2-backend:latest
+    image: credo7/docker-project-sem2-backend:latest
     container_name: momo-store-be
     restart: unless-stopped
     ports:
@@ -16,7 +16,8 @@ services:
       - NODE_ENV=production
       - LOG_LEVEL=info
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
+      # Using curl is generally more robust for healthchecks.
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -29,49 +30,39 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
-    read_only: true
     tmpfs:
       - /tmp
     volumes:
       - backend_data:/app/data
-    secrets:
-      - backend_env
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: ${DOCKER_USERNAME}/docker-project-sem2-frontend:latest
+    image: credo7/docker-project-sem2-frontend:latest
     container_name: momo-store-fe
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     ports:
       - "80:80"
     networks:
       - momo-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          cpus: '0.25'
           memory: 128M
+          cpus: '0.3'
     read_only: true
-    tmpfs:
-      - /tmp
-      - /var/cache/nginx
-      - /var/run
-    secrets:
-      - frontend_env
+    volumes:
+      - nginx-cache:/var/cache/nginx
+      - nginx-pid:/var/run
 
 networks:
   momo-net:
@@ -82,9 +73,5 @@ networks:
 volumes:
   backend_data:
     driver: local
-
-secrets:
-  frontend_env:
-    file: ./secrets/frontend.env
-  backend_env:
-    file: ./secrets/backend.env
+  nginx-cache:
+  nginx-pid:
