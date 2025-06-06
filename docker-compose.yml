@@ -19,7 +19,7 @@ services:
           memory: 1G
         reservations:
           cpus: 0.5
-          memory: /etc/nginx/templates/12M
+          memory: 512M
 
   frontend:
     depends_on:
