@@ -28,7 +28,7 @@ services:
     image: credo7/docker-project-sem2-frontend:latest
     restart: always
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/momo-store.conf:ro
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
       NGINX_SERVER_NAME: localhost
       NGINX_BACKEND_ADDRESS: http://backend:8081/

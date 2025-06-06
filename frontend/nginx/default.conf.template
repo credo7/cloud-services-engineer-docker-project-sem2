@@ -1,6 +1,6 @@
 server {
-    listen       80;
-    server_name  _;
+    listen       8080;
+    server_name  ${NGINX_SERVER_NAME};
 
     # security headers
     add_header X-XSS-Protection          "1; mode=block" always;
@@ -9,13 +9,13 @@ server {
     add_header Content-Security-Policy   "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; frame-ancestors 'self';" always;
     add_header Permissions-Policy        "interest-cohort=()" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
+    
     root   /usr/share/nginx/html;
 
     location / {
         return 301 momo-store$request_uri;
     }
-
+    
     location /momo-store/ {
         root /usr/share/nginx/html;
         index index.html;
@@ -23,7 +23,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://backend:8081/;
+        proxy_pass ${NGINX_BACKEND_ADDRESS};
     }
 
     error_page   500 502 503 504  /50x.html;
