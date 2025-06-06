@@ -13,7 +13,7 @@ server {
     root   /usr/share/nginx/html;
 
     location / {
-        return 301 momo-store$request_uri;
+        return 301 /momo-store$request_uri;
     }
     
     location /momo-store/ {
