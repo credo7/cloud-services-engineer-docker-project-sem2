@@ -1,36 +1,26 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS build
 
-RUN apk update && apk upgrade && apk add --no-cache make python3 g++
+ARG NODE_OPTIONS=--openssl-legacy-provider
+ARG VUE_APP_API_URL=/api
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 
-ENV NODE_ENV=production
-ENV VUE_APP_API_URL=/api
-ENV NODE_OPTIONS=--openssl-legacy-provider
-
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
-RUN apk update && apk upgrade && apk add --no-cache curl
+USER nginx
 
-RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
+COPY --from=build /app/dist /usr/share/nginx/html/momo-store
 
-COPY --chown=appuser:appgroup nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder --chown=appuser:appgroup /app/dist /usr/share/nginx/html
+HEALTHCHECK CMD curl --fail http://localhost:8080/ || exit 1
 
-RUN touch /var/run/nginx.pid && chown -R appuser:appgroup /var/cache/nginx /var/log/nginx /etc/nginx/conf.d /var/run/nginx.pid
-
-EXPOSE 80
-
-USER appuser
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD curl -f http://localhost || exit 1
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

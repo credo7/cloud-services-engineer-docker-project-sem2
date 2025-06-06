@@ -1,34 +1,27 @@
-FROM golang:1.22.7-alpine3.20 AS builder
+FROM golang:1.24-alpine AS build
 
-RUN apk update --no-cache && apk add --no-cache tzdata git curl
+WORKDIR /app
 
-WORKDIR /build
-
-RUN adduser -D -g '' appuser
-
-ADD go.mod .
-ADD go.sum .
+COPY go.mod go.sum ./
 
 RUN go mod download
 
 COPY . .
 
-RUN GOOS=linux CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /build/main ./cmd/api/*.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o backend ./cmd/api
 
-FROM alpine:3.20
-
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+FROM alpine:3.21
 
 WORKDIR /app
 
-COPY --from=builder /build/main .
+COPY --from=build /app/backend .
 
-USER appuser
+RUN apk add --no-cache curl && adduser -D backend
+
+USER backend
 
 EXPOSE 8081
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://localhost:8081/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8081/health || exit 1
 
-CMD ["./main"]
+ENTRYPOINT ["/app/backend"]
