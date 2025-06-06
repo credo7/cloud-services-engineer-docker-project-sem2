@@ -19,8 +19,8 @@ USER nginx
 
 COPY --from=build /app/dist /usr/share/nginx/html/momo-store
 
-HEALTHCHECK CMD curl --fail http://localhost:8080/ || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:80/ || exit 1
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

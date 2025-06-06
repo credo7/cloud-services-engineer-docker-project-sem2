@@ -33,9 +33,9 @@ services:
       NGINX_SERVER_NAME: localhost
       NGINX_BACKEND_ADDRESS: http://backend:8081/
     ports:
-      - 80:8080
+      - 80:80
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080"]
+      test: ["CMD", "curl", "--fail", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
