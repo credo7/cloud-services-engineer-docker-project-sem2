@@ -19,7 +19,7 @@ services:
           memory: 1G
         reservations:
           cpus: 0.5
-          memory: 512M
+          memory: /etc/nginx/templates/12M
 
   frontend:
     depends_on:
@@ -28,7 +28,7 @@ services:
     image: credo7/docker-project-sem2-frontend:latest
     restart: always
     volumes:
-      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     environment:
       NGINX_SERVER_NAME: localhost
       NGINX_BACKEND_ADDRESS: http://backend:8081/
