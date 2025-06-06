@@ -97,8 +97,8 @@ jobs:
 
       - name: Run Docker Compose
         run: |
-          docker-compose up -d --wait
-          docker-compose ps
+          docker compose up -d --wait
+          docker compose ps
 
       - name: Test application health
         run: |
@@ -108,7 +108,7 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker-compose down -v
+          docker compose down -v
           docker system prune -f
 
   security-scan:
