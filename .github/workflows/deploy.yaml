@@ -95,6 +95,12 @@ jobs:
         run: |
           echo "DOCKER_USERNAME=${{ env.DOCKER_USERNAME }}" > .env
 
+      - name: Create secrets files for Docker Compose
+        run: |
+          mkdir -p secrets
+          echo "${{ secrets.BACKEND_ENV_FILE }}" > secrets/backend.env
+          echo "${{ secrets.FRONTEND_ENV_FILE }}" > secrets/frontend.env
+
       - name: Run Docker Compose
         run: |
           docker compose up -d --wait
